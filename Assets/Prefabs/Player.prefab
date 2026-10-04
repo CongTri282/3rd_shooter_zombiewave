@@ -1947,8 +1947,13 @@ MonoBehaviour:
   cameraCollisionLayers:
     serializedVersion: 2
     m_Bits: 51
-  walkSpeed: 5
-  runSpeed: 9
+  maxHealth: 100
+  currentHealth: 0
+  playerHealthBar: {fileID: 0}
+  powerUpFillImage: {fileID: 0}
+  gameOverPanel: {fileID: 0}
+  walkSpeed: 2
+  runSpeed: 5
   aimWalkSpeed: 3.5
   jumpForce: 360
   isGrounded: 1

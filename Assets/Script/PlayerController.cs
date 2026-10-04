@@ -198,6 +198,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (isDead) return;
         moveInput = inputActions.Player.Move.ReadValue<Vector2>();
 
         // Read aim and sprint inputs
@@ -237,7 +238,7 @@ public class PlayerController : MonoBehaviour
     {
         UpdateCameraPosition();
 
-        if (playerAnim == null || mainCam == null) return;
+        if (isDead || playerAnim == null || mainCam == null) return;
 
         float targetWeight = isAiming ? 1f : 0f;
         currentSpineAimWeight = Mathf.Lerp(currentSpineAimWeight, targetWeight, Time.deltaTime * aimTransitionSpeed);
@@ -342,6 +343,13 @@ public class PlayerController : MonoBehaviour
             SolveLimbIK(rightShoulder, rightUpperArm, rightLowerArm, rightHand, activeWeapon.rightHandGrip, true);
             SolveLimbIK(leftShoulder, leftUpperArm, leftLowerArm, leftHand, activeWeapon.leftHandGrip, false);
         }
+    }
+
+    private void FixedUpdate()
+    {
+        if (isDead) return;
+        MovePlayer();
+        PlayerJump();
     }
 
     void SolveLimbIK(Transform clavicle, Transform upperArm, Transform lowerArm, Transform hand, Transform gripTarget, bool isRightArm)
@@ -518,12 +526,6 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
-    {
-        MovePlayer();
-        PlayerJump();
-    }
-
     void MovePlayer()
     {
         float currentSpeed = walkSpeed;
@@ -621,21 +623,53 @@ public class PlayerController : MonoBehaviour
 
     void Die()
     {
+        if (isDead) return;
         isDead = true;
-        inputActions.Disable();
 
-        // Unlock cursor so player can click Restart/Quit buttons
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        // 1. Stop physics sliding and disable Aiming states
+        isAiming = false;
+        isSprinting = false;
+        moveInput = Vector2.zero;
 
+        if (playerRb != null)
+        {
+            playerRb.linearVelocity = Vector3.zero;
+            playerRb.isKinematic = true; // Prevents enemies from pushing the player's corpse around
+        }
+
+        // Disable collider so enemies stop attacking/bumping into the dead body
+        Collider col = GetComponent<Collider>();
+        if (col != null) col.enabled = false;
+
+        // 2. Turn off UpperBody Aiming Layer (Layer 1) and trigger the Death animation on Base Layer
+        if (playerAnim != null)
+        {
+            if (playerAnim.layerCount > 1)
+            {
+                playerAnim.SetLayerWeight(1, 0f);
+            }
+            playerAnim.SetFloat("Speed", 0f);
+            playerAnim.SetBool("IsAiming", false);
+            playerAnim.SetTrigger("Die");
+        }
+
+        // 3. Optional: Let the rifle drop to the ground when the player dies!
+        if (activeWeapon != null)
+        {
+            activeWeapon.transform.SetParent(null);
+            Rigidbody gunRb = activeWeapon.gameObject.AddComponent<Rigidbody>();
+            BoxCollider gunCol = activeWeapon.gameObject.AddComponent<BoxCollider>();
+            gunCol.size = new Vector3(0.15f, 0.25f, 0.8f);
+            gunRb.AddForce(transform.forward * 1.5f + Vector3.up * 1f, ForceMode.Impulse);
+        }
+
+        // 4. Hide Crosshair & Show Game Over UI
         if (crosshairRect != null) crosshairRect.gameObject.SetActive(false);
         if (gameOverPanel != null) gameOverPanel.SetActive(true);
 
-        if (playerAnim != null)
-        {
-            playerAnim.SetLayerWeight(1, 0f); // Turn off upper-body aiming layer
-            playerAnim.SetTrigger("Die");     // Optional: if you have a Death state in Player Animator
-        }
+        // Unlock mouse cursor for UI buttons
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     public void ActivatePowerUp(float duration)
