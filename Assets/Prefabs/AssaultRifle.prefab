@@ -970,7 +970,7 @@ MonoBehaviour:
   idleLocalEuler: {x: 29.428513, y: 299.37854, z: 357.59897}
   aimLocalPos: {x: 0.205, y: 0.096, z: 0.3}
   aimLocalEuler: {x: 0, y: 0, z: 0}
-  bulletPrefab: {fileID: 9072662058178162203, guid: 96d0f86c031c2aa47b81d862f6c7a7d1, type: 3}
+  bulletPrefab: {fileID: 8096279062158104656, guid: 290f0a806f86b3f4ea22bb4f6784f931, type: 3}
   fireRate: 0.15
   recoilKickBack: {x: 0, y: 0.005, z: -0.04}
   recoilRotation: {x: -2.5, y: 0, z: 0}

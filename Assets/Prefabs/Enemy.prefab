@@ -265,7 +265,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyController
   contactDamage: 10
   attackCooldown: 1
-  moveSpeed: 1.5
+  moveSpeed: 1
   rotationSpeed: 10
   maxHealth: 30
   deathDestroyDelay: 3

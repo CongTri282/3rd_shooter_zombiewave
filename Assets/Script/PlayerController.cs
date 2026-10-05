@@ -10,8 +10,8 @@ public class PlayerController : MonoBehaviour
     private Rigidbody playerRb;
     private Camera mainCam;
     private Animator playerAnim;
-    private float boundaryZ = 24f;
-    private float boundaryX = 24f;
+    private float boundaryZ = 35f;
+    private float boundaryX = 35f;
 
     [Header("Camera Setup")]
     public Transform focalPoint;
