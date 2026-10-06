@@ -15,13 +15,14 @@ public class EnemyController : MonoBehaviour
     private float nextAttackTime = 0f;
     public float moveSpeed = 3f;
     public float rotationSpeed = 10f;
-    public float maxHealth = 30f;
     public float deathDestroyDelay = 3f; // Time to wait for death animation before destroying object
-    private float currentHealth;
+    public int pointsPerKill = 100;
 
     [Header("Health Bar")]
     public Slider healthBar;
     private Transform camTransform;
+    public float maxHealth = 30f;
+    private float currentHealth;
 
     void Awake()
     {
@@ -126,7 +127,7 @@ public class EnemyController : MonoBehaviour
 
         if (SpawnManager.Instance != null)
         {
-            SpawnManager.Instance.OnEnemyKilled();
+            SpawnManager.Instance.OnEnemyKilled(pointsPerKill);
         }
 
         // 1. Trigger the Death animation

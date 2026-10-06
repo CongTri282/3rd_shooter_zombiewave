@@ -665,7 +665,7 @@ public class PlayerController : MonoBehaviour
 
         // 4. Hide Crosshair & Show Game Over UI
         if (crosshairRect != null) crosshairRect.gameObject.SetActive(false);
-        if (gameOverPanel != null) gameOverPanel.SetActive(true);
+        if (gameOverPanel != null) GameManager.Instance.TriggerGameOver();
 
         // Unlock mouse cursor for UI buttons
         Cursor.lockState = CursorLockMode.None;

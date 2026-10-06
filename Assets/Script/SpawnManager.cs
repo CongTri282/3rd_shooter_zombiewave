@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.Collections;
+using TMPro;
 
 [System.Serializable]
 public struct WaveConfig
@@ -25,10 +26,14 @@ public class SpawnManager : MonoBehaviour
     public float spawnRangeX = 24f;
     public float spawnRangeZ = 24f;
 
+    [Header("Gate Spawn Points")]
+    public Transform[] spawnPoints;
+    public float spawnScatterRadius = 1.2f; // Slight offset so enemies at the same gate don't overlap
+    private int lastSpawnIndex = -1;
+
     [Header("Wave Configuration")]
     public List<WaveConfig> waves;
     public int currentWave = 1;
-
     private int enemyCount = 0;
 
     void Awake()
@@ -42,9 +47,17 @@ public class SpawnManager : MonoBehaviour
         StartCoroutine(SpawnPowerUpRoutine());
     }
 
-    public void OnEnemyKilled()
+    public void OnEnemyKilled(int pointsPerKill)
     {
+        if (GameManager.Instance != null && GameManager.Instance.isGameOver) return;
+
         enemyCount--;
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.AddScore(pointsPerKill);
+            GameManager.Instance.UpdateWaveUI(currentWave, enemyCount);
+        }
 
         if (enemyCount <= 0)
         {
@@ -62,43 +75,81 @@ public class SpawnManager : MonoBehaviour
         {
             // Spawn the exact counts configured in the Inspector for this wave
             WaveConfig wave = waves[waveIndex];
-            SpawnEnemy(NORMAL_ENEMY, wave.normalEnemies);
-            SpawnEnemy(BIG_ENEMY, wave.bigEnemies);
-            SpawnEnemy(SMALL_ENEMY, wave.smallEnemies);
+            SpawnEnemyAtGate(NORMAL_ENEMY, wave.normalEnemies);
+            SpawnEnemyAtGate(BIG_ENEMY, wave.bigEnemies);
+            SpawnEnemyAtGate(SMALL_ENEMY, wave.smallEnemies);
         }
         else
         {
             // Endless fallback once the player beats all configured waves
-            SpawnEnemy(NORMAL_ENEMY, waveNumber * 2);
+            SpawnEnemyAtGate(NORMAL_ENEMY, waveNumber * 2);
         }
-    }
 
-    void SpawnEnemy(int prefabIndex, int amount)
-    {
-        for (int i = 0; i < amount; i++)
+        if (GameManager.Instance != null)
         {
-            GameObject prefab = enemyPrefabs[prefabIndex];
-            Instantiate(prefab, GenerateSpawnPosition(), prefab.transform.rotation);
-            enemyCount++;
+            GameManager.Instance.UpdateWaveUI(currentWave, enemyCount);
         }
     }
 
     private IEnumerator SpawnPowerUpRoutine()
     {
-        while (true)
+        while (GameManager.Instance == null || !GameManager.Instance.isGameOver)
         {
             // 1. Wait 10 to 20 seconds before spawning
             float waitTime = Random.Range(10f, 20f);
             yield return new WaitForSeconds(waitTime);
 
+            if  (GameManager.Instance != null && GameManager.Instance.isGameOver)
+            {
+                yield break; // Stop spawning if the game is over
+            }
+
             // 2. Spawn the power-up
             Instantiate(powerUpPrefab, GenerateSpawnPosition(), powerUpPrefab.transform.rotation);
         }
     }
+
     private Vector3 GenerateSpawnPosition()
     {
         float spawnPosX = Random.Range(-spawnRangeX, spawnRangeX);
         float spawnPosZ = Random.Range(-spawnRangeZ, spawnRangeZ);
         return new Vector3(spawnPosX, 1f, spawnPosZ);
+    }
+
+    void SpawnEnemyAtGate(int prefabIndex, int amount)
+    {
+        if (amount <= 0 || prefabIndex < 0 || prefabIndex >= enemyPrefabs.Length)
+        {
+            return; // Nothing to spawn or invalid prefab index
+        }
+
+        if (spawnPoints == null || spawnPoints.Length == 0)
+        {
+            Debug.LogWarning("No SpawnPoints assigned to SpawnManager!");
+            return;
+        }
+
+        GameObject prefab = enemyPrefabs[prefabIndex];
+
+        for (int i = 0; i < amount; i++)
+        {
+            // 1. Pick a gate for EACH enemy (distributes the wave across all 4 gates)
+            int index = Random.Range(0, spawnPoints.Length);
+            if (spawnPoints.Length > 1 && index == lastSpawnIndex)
+            {
+                index = (index + 1) % spawnPoints.Length;
+            }
+            lastSpawnIndex = index;
+
+            Transform chosenGate = spawnPoints[index];
+
+            // 2. Add a small horizontal offset around the gate so multiple enemies don't clip into each other
+            Vector2 randomCircle = Random.insideUnitCircle * spawnScatterRadius;
+            Vector3 spawnPos = chosenGate.position + new Vector3(randomCircle.x, 0f, randomCircle.y);
+
+            // 3. Spawn facing the gate's inward +Z direction
+            Instantiate(prefab, spawnPos, chosenGate.rotation);
+            enemyCount++;
+        }
     }
 }

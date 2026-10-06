@@ -1953,8 +1953,8 @@ MonoBehaviour:
   powerUpFillImage: {fileID: 0}
   gameOverPanel: {fileID: 0}
   walkSpeed: 1.5
-  runSpeed: 3.5
-  aimWalkSpeed: 3.5
+  runSpeed: 4
+  aimWalkSpeed: 1
   jumpForce: 360
   isGrounded: 1
   normalFOV: 60
