@@ -183,14 +183,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 956fe461cd00a834f8d2c1b06fe625a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyController
-  contactDamage: 20
-  attackCooldown: 1
   moveSpeed: 2
   rotationSpeed: 10
+  maxHealth: 100
   deathDestroyDelay: 3
   pointsPerKill: 50
+  attackRange: 2.8
+  attackDamage: 30
+  attackCooldown: 3
+  attackHitDelay: 1.1
   healthBar: {fileID: 9110141130147416917}
-  maxHealth: 100
 --- !u!54 &9019036702887179804
 Rigidbody:
   m_ObjectHideFlags: 0

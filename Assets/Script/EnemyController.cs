@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.AI;
+using System.Collections;
 
 public class EnemyController : MonoBehaviour
 {
@@ -7,25 +9,32 @@ public class EnemyController : MonoBehaviour
     private Collider enemyCollider;
     private Animator enemyAnim;
     private GameObject player;
+    private PlayerController playerCtrl;
+    private NavMeshAgent agent;
     private bool dead = false;
 
     [Header("Stats")]
-    public float contactDamage = 10f;
-    public float attackCooldown = 1f;
-    private float nextAttackTime = 0f;
     public float moveSpeed = 3f;
     public float rotationSpeed = 10f;
+    public float maxHealth = 30f;
+    private float currentHealth;
     public float deathDestroyDelay = 3f; // Time to wait for death animation before destroying object
     public int pointsPerKill = 100;
+
+    [Header("Combat & Melee Attack")]
+    public float attackRange = 1.8f;
+    public float attackDamage = 10f;
+    public float attackCooldown = 1.2f;
+    public float attackHitDelay = 0.5f;
+    private float nextAttackTime = 0f;
 
     [Header("Health Bar")]
     public Slider healthBar;
     private Transform camTransform;
-    public float maxHealth = 30f;
-    private float currentHealth;
 
     void Awake()
     {
+        agent = GetComponent<NavMeshAgent>();
         enemyRb = GetComponent<Rigidbody>();
         enemyCollider = GetComponent<Collider>();
         enemyAnim = GetComponentInChildren<Animator>();
@@ -42,7 +51,18 @@ public class EnemyController : MonoBehaviour
             enemyAnim.applyRootMotion = false;
         }
 
+        if (agent != null)
+        {
+            agent.speed = moveSpeed;
+            agent.stoppingDistance = attackRange * 0.85f;
+        }
+
         player = GameObject.Find("Player");
+        if (player != null)
+        {
+            playerCtrl = player.GetComponent<PlayerController>();
+        }
+
         if (Camera.main != null)
         {
             camTransform = Camera.main.transform;
@@ -89,9 +109,69 @@ public class EnemyController : MonoBehaviour
 
     void Update()
     {
+        if (dead) return;
+
         if (!dead && transform.position.y < -10f)
         {
             Die();
+            return;
+        }
+
+        if (player == null || (GameManager.Instance != null && GameManager.Instance.isGameOver))
+        {
+            if (agent != null && agent.isOnNavMesh) agent.isStopped = true;
+            if (enemyAnim != null) enemyAnim.SetBool("IsWalking", false);
+            return;
+        }
+
+        // Flat horizontal distance to the player
+        Vector3 flatPlayerPos = new Vector3(player.transform.position.x, transform.position.y, player.transform.position.z);
+        float distanceToPlayer = Vector3.Distance(transform.position, flatPlayerPos);
+
+        if (distanceToPlayer <= attackRange)
+        {
+            // 1. Inside Attack Range: Stop moving, face the player, and attack on cooldown
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+            }
+
+            if (enemyAnim != null)
+            {
+                enemyAnim.SetBool("IsWalking", false);
+            }
+
+            // Smoothly face the player while attacking
+            Vector3 lookDir = (flatPlayerPos - transform.position).normalized;
+            if (lookDir.sqrMagnitude > 0.001f)
+            {
+                Quaternion targetRot = Quaternion.LookRotation(lookDir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationSpeed * Time.deltaTime);
+            }
+
+            if (Time.time >= nextAttackTime)
+            {
+                nextAttackTime = Time.time + attackCooldown;
+                if (enemyAnim != null)
+                {
+                    enemyAnim.SetTrigger("Attack");
+                }
+                StartCoroutine(DealDamageRoutine(attackHitDelay));
+            }
+        }
+        else
+        {
+            // 2. Outside Attack Range: Pathfind around obstacles toward the player
+            if (agent != null && agent.isOnNavMesh)
+            {
+                agent.isStopped = false;
+                agent.SetDestination(player.transform.position);
+            }
+
+            if (enemyAnim != null)
+            {
+                enemyAnim.SetBool("IsWalking", true);
+            }
         }
     }
 
@@ -103,6 +183,26 @@ public class EnemyController : MonoBehaviour
         }
     }
 
+    private IEnumerator DealDamageRoutine(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        // 1. Cancel the hit if the enemy was killed or the game ended during the swing
+        if (dead || player == null || playerCtrl == null || (GameManager.Instance != null && GameManager.Instance.isGameOver))
+        {
+            yield break;
+        }
+
+        // 2. Allow the player to dodge! Only apply damage if they are still inside the attack range
+        // (Added a 0.5f buffer so stepping back a tiny millimeter doesn't unfairly miss)
+        Vector3 flatPlayerPos = new Vector3(player.transform.position.x, transform.position.y, player.transform.position.z);
+        float distanceToPlayer = Vector3.Distance(transform.position, flatPlayerPos);
+
+        if (distanceToPlayer <= attackRange + 0.5f)
+        {
+            playerCtrl.TakeDamage(attackDamage);
+        }
+    }
     public void TakeDamage(float damageAmount)
     {
         if (dead) return;
@@ -131,10 +231,10 @@ public class EnemyController : MonoBehaviour
         }
 
         // 1. Trigger the Death animation
-        if (enemyAnim != null)
+        if (agent != null)
         {
-            enemyAnim.SetBool("IsWalking", false);
-            enemyAnim.SetTrigger("Die");
+            if (agent.isOnNavMesh) agent.isStopped = true;
+            agent.enabled = false;
         }
 
         // 2. Hide the health bar immediately
@@ -148,28 +248,14 @@ public class EnemyController : MonoBehaviour
         {
             enemyCollider.enabled = false;
         }
-        if (enemyRb != null)
+
+        if (enemyAnim != null)
         {
-            enemyRb.linearVelocity = Vector3.zero;
-            enemyRb.isKinematic = true;
+            enemyAnim.SetBool("IsWalking", false);
+            enemyAnim.SetTrigger("Die");
         }
 
         // 4. Destroy the GameObject after the death animation finishes
         Destroy(gameObject, deathDestroyDelay);
-    }
-
-    private void OnCollisionStay(Collision collision)
-    {
-        if (dead) return;
-
-        if (collision.gameObject.CompareTag("Player") && Time.time >= nextAttackTime)
-        {
-            nextAttackTime = Time.time + attackCooldown;
-            PlayerController playerCtrl = collision.gameObject.GetComponent<PlayerController>();
-            if (playerCtrl != null)
-            {
-                playerCtrl.TakeDamage(contactDamage);
-            }
-        }
     }
 }
