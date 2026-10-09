@@ -285,4 +285,4 @@ MonoBehaviour:
   hitLayers:
     serializedVersion: 2
     m_Bits: 51
-  hitEffectPrefab: {fileID: 0}
+  hitEffectPrefab: {fileID: 8867705116226415510, guid: 1135a4ba0d3bdc24d821a180067331dc, type: 3}

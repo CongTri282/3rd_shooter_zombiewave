@@ -23,6 +23,11 @@ public class Weapon : MonoBehaviour
     public Vector3 recoilRotation = new Vector3(-2.5f, 0f, 0f);      // Slight muzzle climb (-X)
     public float recoilReturnSpeed = 12f;
 
+    [Header("Fire Effects")]
+    public ParticleSystem muzzleFlash;
+    public AudioSource weaponAudio;
+    public AudioClip shootSound;
+
     // Helper buttons to save positions directly from the Scene view!
     [ContextMenu("Save Current Transform as IDLE Pose")]
     private void SaveIdlePose()
@@ -38,5 +43,18 @@ public class Weapon : MonoBehaviour
         aimLocalPos = transform.localPosition;
         aimLocalEuler = transform.localEulerAngles;
         Debug.Log($"{name}: Saved AIMING Pose!");
+    }
+
+    public void PlayFireEffects()
+    {
+        if (muzzleFlash != null)
+        {
+            muzzleFlash.Play();
+        }
+
+        if (weaponAudio != null && shootSound != null)
+        {
+            weaponAudio.PlayOneShot(shootSound);
+        }
     }
 }

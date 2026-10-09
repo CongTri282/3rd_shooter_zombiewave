@@ -10,6 +10,8 @@ public class Bullet : MonoBehaviour
 
     [Header("Collision Settings")]
     public LayerMask hitLayers = ~0;
+    
+    [Header("VFX")]
     public GameObject hitEffectPrefab;
 
     void Start()

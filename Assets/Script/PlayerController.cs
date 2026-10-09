@@ -584,12 +584,30 @@ public class PlayerController : MonoBehaviour
 
         // Cast a ray from the exact center of the screen (where your crosshair is)
         Ray ray = mainCam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-        Vector3 targetPoint = (Physics.Raycast(ray, out RaycastHit hit, 100f, cameraCollisionLayers) && hit.distance > minAimDistance)
-            ? hit.point
-            : ray.GetPoint(100f);
+        Vector3 targetPoint = Physics.Raycast(ray, out RaycastHit hit, 100f, cameraCollisionLayers)
+                ? hit.point
+                : ray.GetPoint(100f);
 
         Vector3 shootDirection = (targetPoint - activeWeapon.firePoint.position).normalized;
+
+        // PREVENT EXTREME TWISTING: Check the angle between the barrel's natural forward and the needed trajectory
+        float twistAngle = Vector3.Angle(activeWeapon.firePoint.forward, shootDirection);
+
+        if (twistAngle > 25f) // If it twists more than 25 degrees, the enemy is awkwardly close
+        {
+            shootDirection = activeWeapon.firePoint.forward; // Just shoot straight forward from the gun
+        }
+
         Instantiate(activeWeapon.bulletPrefab, activeWeapon.firePoint.position, Quaternion.LookRotation(shootDirection));
+
+        if (activeWeapon != null)
+        {
+            Weapon currentWeapon = activeWeapon.GetComponent<Weapon>();
+            if (currentWeapon != null)
+            {
+                currentWeapon.PlayFireEffects();
+            }
+        }
 
         // Apply snappy procedural recoil to the active weapon
         currentRecoilPos += activeWeapon.recoilKickBack;
